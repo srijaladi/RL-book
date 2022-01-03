@@ -7,7 +7,6 @@ import itertools
 from operator import itemgetter
 from rl.gen_utils.common_funcs import get_logistic_func, get_unit_sigmoid_func
 
-
 @dataclass
 class Process1:
     @dataclass
@@ -133,6 +132,8 @@ def plot_single_trace_all_processes(
     from rl.gen_utils.plot_funcs import plot_list_of_curves
 
     traces_len = len(process1_trace)
+
+    #print("traces_len: " + str(traces_len))
 
     plot_list_of_curves(
         [range(traces_len)] * 3,

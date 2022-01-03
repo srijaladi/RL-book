@@ -183,11 +183,17 @@ if __name__ == '__main__':
     trace1 = process1_traces[0]
     trace2 = process2_traces[0]
     trace3 = process3_traces[0]
+    
+    print(trace1)
 
     plot_single_trace_all_processes(trace1, trace2, trace3)
+    
+    print(trace2)
 
     plot_distribution_at_time_all_processes(
         process1_traces,
         process2_traces,
         process3_traces
     )
+    
+    print(trace3)

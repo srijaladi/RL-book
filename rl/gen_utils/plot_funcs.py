@@ -12,6 +12,7 @@ def plot_list_of_curves(
     title=None
 ):
     plt.figure(figsize=(11, 7))
+    #print("PLT Created")
     for i, x_vals in enumerate(list_of_x_vals):
         plt.plot(
             x_vals,
@@ -33,7 +34,9 @@ def plot_list_of_curves(
         plt.title(title, fontsize=25)
     plt.grid(True)
     plt.legend(fontsize=15)
+    #print("PLT finished")
     plt.show()
+    #print("PLS SHowed")
 
 
 if __name__ == '__main__':
