@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+[from dataclasses import dataclass
 from typing import Optional, Mapping
 import numpy as np
 import itertools
@@ -8,7 +8,7 @@ from rl.gen_utils.common_funcs import get_logistic_func, get_unit_sigmoid_func
 from rl.chapter2.stock_price_simulations import\
     plot_single_trace_all_processes
 from rl.chapter2.stock_price_simulations import\
-    plot_distribution_at_time_all_processes
+    plot_distribution_at_time_all_processes]
 
 
 @dataclass(frozen=True)
