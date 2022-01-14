@@ -15,6 +15,8 @@ from rl.chapter2.stock_price_simulations import\
     plot_distribution_at_time_all_processes
 import matplotlib         
 from matplotlib import pyplot as plt
+from typing import (Callable, Dict, Iterable, Generic, Sequence, Tuple,
+                    Mapping, TypeVar, Set)
 """
 Created on Sun Jan  9 06:58:52 2022
 
@@ -88,7 +90,7 @@ class SAndLMP(FiniteMarkovProcess[MarkovProcess[StateMP]]):
                 if (new_state == 100):
                     transition_probabilities[Terminal(StateMP(new_state))] = 1/6
                 elif (new_state > 100):
-                    transition_probabilities[NonTerminal(StateMP(200 - new_state))] = 1/6
+                    transition_probabilities[Terminal(StateMP(new_state))] = 1/6
                 else:
                     transition_probabilities[NonTerminal(StateMP(new_state))] = 1/6
             
@@ -119,7 +121,7 @@ start_state_distribution = Constant(
         )
 
 #Have 1000 traces or simulations
-numTraces = 1000
+numTraces = 10
 traceNumber = 0
 
 roll_counts = np.array([], int)
@@ -140,7 +142,7 @@ print("Expected Rolls Needed: " + str(np.average(roll_counts)))
 
 
 """
-We can also model the same concept of the game (trying to identify how many
+We can also model the same concept of the ogame (trying to identify how many
 expected number of dice rolls must be made to end the game) from the concept
 of a reward. From each state, the future reward is expressed as the expected
 number of moves needed from that position to reach the end.
@@ -149,8 +151,82 @@ Essentially, R(s) = E{num_more_moves_needed}
 
 """
 
+@dataclass
+class SAndLMPReward(FiniteMarkovRewardProcess[StateMP]):
+    
+    def __init__ (self):
+        #transition_map = self.create_transition_map()
+        super().__init__(self.get_transition_reward_map())
+        
+    def create_transition_map(self):
+        transition_map= {}
+        
+        snakes = {16:6,
+                  47:26,
+                  49:11,
+                  56:53,
+                  62:19,
+                  64:60,
+                  87:24,
+                  93:73,
+                  95:75,
+                  98:78}
+        ladders = {1:38,
+                   4:14,
+                   9:31,
+                   21:42,
+                   28:84,
+                   36:46,
+                   51:67,
+                   71:91,
+                   80:100}
+        
+        for i in range(1,100):
+            transition_probabilities = {}
+            
+            for j in range(i+1,i+7):
+                
+                if j in snakes:
+                    new_state = snakes[j]
+                elif j in ladders:
+                    new_state = ladders[j]
+                else:
+                    new_state = j
+                
+                if (new_state == 100):
+                    transition_probabilities[Terminal(StateMP(new_state))] = 1/6
+                elif (new_state > 100):
+                    transition_probabilities[Terminal(StateMP(new_state))] = 1/6
+                else:
+                    transition_probabilities[NonTerminal(StateMP(new_state))] = 1/6
+            
+            transition_map[NonTerminal(StateMP(i))] = transition_probabilities
+        
+        return transition_map    
+    
+    def get_transition_reward_map(self) -> \
+            Mapping[
+                StateMP,
+                FiniteDistribution[Tuple[StateMP, float]]
+            ]:
+        temp_transition_map = self.create_transition_map()
+        
+        tran_reward_map  = {}
+        
+        for curr_state in temp_transition_map:
+            curr_state_reward_map = {(StateMP(new_state), 1) : 1/6 for new_state in temp_transition_map[curr_state]}
+            tran_reward_map[curr_state] = Categorical(curr_state_reward_map)
+        
+        print(tran_reward_map)
+        return tran_reward_map
+        
+        
 
+user_gamma = 1.0
 
+mpr = SAndLMPReward()
+
+#mpr.display_reward_function()
 
 
 """
