@@ -214,7 +214,7 @@ class SAndLMPReward(FiniteMarkovRewardProcess[StateMP]):
         tran_reward_map  = {}
         
         for curr_state in temp_transition_map:
-            curr_state_reward_map = {(StateMP(new_state), 1) : 1/6 for new_state in temp_transition_map[curr_state]}
+            curr_state_reward_map = {(new_state, 1) : 1/6 for new_state in temp_transition_map[curr_state]}
             tran_reward_map[curr_state] = Categorical(curr_state_reward_map)
         
         print(tran_reward_map)
@@ -226,7 +226,7 @@ user_gamma = 1.0
 
 mpr = SAndLMPReward()
 
-#mpr.display_reward_function()
+mpr.display_value_function(user_gamma)
 
 
 """
