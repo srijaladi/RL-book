@@ -6,7 +6,7 @@ from typing import Optional, Mapping
 import numpy as np
 import itertools
 from rl.distribution import (Categorical, Distribution, FiniteDistribution,
-                             SampledDistribution, Constant)
+                             SampledDistribution, Constant, Choose)
 from rl.markov_process import MarkovProcess, NonTerminal, State, Terminal
 from rl.gen_utils.common_funcs import get_logistic_func, get_unit_sigmoid_func
 from rl.markov_process import FiniteMarkovProcess, MarkovRewardProcess, FiniteMarkovRewardProcess
@@ -36,9 +36,12 @@ from rl.markov_decision_process import (FiniteMarkovDecisionProcess,
 from rl.dynamic_programming import value_iteration, almost_equal_vfs, greedy_policy_from_vf
 from pprint import pprint
 import rl.markov_process as mp
+from rl.markov_process import TransitionStep
 from rl.approximate_dynamic_programming import (ValueFunctionApprox,
                                                 QValueFunctionApprox,
                                                 NTStateDistribution)
+from collections import defaultdict
+
 S = TypeVar('S')
 A = TypeVar('A')
 
@@ -46,17 +49,19 @@ A = TypeVar('A')
 
 
 
-
 def TabularTDPredict(
-        simulations: Iterable[Iterable[mp.TransitionStep[S]]],
+        simulations: Iterable[mp.TransitionStep[S]],
         gamma: float
         ) -> Mapping[S, float]:
     
-    V: Mapping[S, float] = []
-    stateUpdates: Mapping[S, int] = {}
+    def def_value():
+        return 0
     
-    for currSim in simulations:
-        updateResult = updateTabularTD(currSim, gamma, V, stateUpdates)
+    V: Mapping[S, float] = defaultdict(def_value)
+    stateUpdates: Mapping[S, int] = defaultdict(def_value)
+    
+    for transitionStep in simulations:
+        updateResult = updateTabularTD(transitionStep, gamma, V, stateUpdates)
         stateUpdates = updateResult[0]
         V = updateResult[1]
     
@@ -64,33 +69,27 @@ def TabularTDPredict(
     
     
 def updateTabularTD(
-        currSim: Iterable[mp.TransitionStep[S]],
+        transitionStep: mp.TransitionStep[S],
         gamma: float,
         currApprox: Mapping[S, float],
         stateUpdates: Mapping[S, int]
         ) -> Tuple[Mapping[S, int], Mapping[S, float]]:
     
-    cumulativeReward = 0
+    currState = transitionStep.state
+            
+    if isinstance(transitionStep.next_state, Terminal):
+        futureValue = 0
+    else:
+        futureValue = currApprox[transitionStep.next_state]
+        
+    currEstimate = transitionStep.reward + gamma * futureValue
     
-    for transitionStep in reversed(currSim):
-        currState = transitionStep.state
+    n = stateUpdates[currState]
+    change = (1/(n+1)) * (currEstimate - currApprox[currState])
+    currApprox[currState] += change
         
-        if isinstance(transitionStep.next_state, Terminal):
-            futureValue = 0
-        else:
-            futureValue = currApprox[transitionStep.next_state]
-            
-        currEstimate = transitionStep.reward + gamma * futureValue
+    stateUpdates[currState] = n+1
         
-        if stateUpdates.has_key(currState):
-            currApprox[currState] = currEstimate
-            stateUpdates[currState] = 1
-        else:
-            n = stateUpdates[currState]
-            change = (1/(n+1)) * (currEstimate - currApprox[currState])
-            currApprox[currState] += change
-            
-            stateUpdates[currState] += 1
     
     return (stateUpdates, currApprox)
     

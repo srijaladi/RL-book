@@ -39,6 +39,7 @@ import rl.markov_process as mp
 from rl.approximate_dynamic_programming import (ValueFunctionApprox,
                                                 QValueFunctionApprox,
                                                 NTStateDistribution)
+from collections import defaultdict
 S = TypeVar('S')
 A = TypeVar('A')
 
@@ -52,8 +53,11 @@ def TabularMCPredict(
         gamma: float
         ) -> Mapping[S, float]:
     
-    V: Mapping[S, float] = []
-    stateUpdates: Mapping[S, int] = {}
+    def def_value():
+        return 0
+    
+    V: Mapping[S, float] = defaultdict(def_value)
+    stateUpdates: Mapping[S, int] = defaultdict(def_value)
     
     for currSim in simulations:
         updateResult = updateTabularMC(currSim, gamma, V, stateUpdates)
@@ -79,16 +83,12 @@ def updateTabularMC(
         cumulativeReward *= gamma
         cumulativeReward += currReward
         
-        if stateUpdates.has_key(currState):
-            currApprox[currState] = cumulativeReward
+        n = stateUpdates[currState]
+        change = (1/(n+1)) * (cumulativeReward - currApprox[currState])
+        
+        currApprox[currState] += change
+        stateUpdates[currState] += 1
             
-            stateUpdates[currState] = 1
-        else:
-            n = stateUpdates[currState]
-            change = (1/(n+1)) * (cumulativeReward - currApprox[currState])
-            currApprox[currState] += change
-            
-            stateUpdates[currState] += 1
     
     return (stateUpdates, currApprox)
     

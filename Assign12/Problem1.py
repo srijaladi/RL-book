@@ -35,109 +35,90 @@ from rl.markov_decision_process import (FiniteMarkovDecisionProcess,
                                         FiniteMarkovRewardProcess)
 from rl.dynamic_programming import value_iteration, almost_equal_vfs, greedy_policy_from_vf
 from pprint import pprint
+import rl.markov_process as mp
+from rl.approximate_dynamic_programming import (ValueFunctionApprox,
+                                                QValueFunctionApprox,
+                                                NTStateDistribution)
+import math
+from collections import defaultdict
 
-@dataclass(frozen=True)
-class handState:
-    Ones: int
-    Sum: int
-    Dice: Tuple[int]
+
+S = TypeVar('S')
+A = TypeVar('A')
+
+
+
+
+
+
+def TabularTDLambaPredict(
+        simulations: Iterable[Iterable[mp.TransitionStep[S]]],
+        gamma: float,
+        l: float
+        ) -> Mapping[S, float]:
     
-handActionMapping = Mapping[handState, Mapping[List[int], Categorical[Tuple[handState, float]]]]
-
-class diceRollsMDP(FiniteMarkovDecisionProcess[handState, int]):
-    def __init__(self, N: int, K: int, C: int):
-        self.totalRolls = N
-        self.numFaces = K
-        self.minOnes = C
-        self.possRolls = [i for i in range(1, K+1)]
-        self.allCombinations: Dict[int, Iterable[List[int]]] = {}
+    def def_value():
+        return 0
+    
+    V: Mapping[S, float] = defaultdict(def_value)
+    
+    for currSim in simulations:
+        updateResult = updateTabularTDLambda(currSim, gamma, l, V)
+        V = updateResult
+    
+    return V
+    
+    
+def updateTabularTDLambda(
+        currSim: Iterable[mp.TransitionStep[S]],
+        gamma: float,
+        l: float,
+        currApprox: Mapping[S, float],
+        ) -> Mapping[S, float]:
+    
+    cumulativeReward = 0
+    seqRewardArr = []
+    
+    for transitionStep in reversed(currSim):
+        currState = transitionStep.state
+        currReward = transitionStep.reward
         
-        for i in range(0, N+1):
-            possibleChoices = [self.possRolls for _ in range(i)]
-            
-            allPossibilities = list(product(*possibleChoices))
-            
-            self.allCombinations[i] = allPossibilities
-            
-        super().__init__(self.get_action_transition_reward_map()) 
-    
-    def get_action_transition_reward_map(self) -> handActionMapping:
+        cumulativeReward *= gamma
+        cumulativeReward += currReward
         
-        d: Dict[handState, Dict[List[int], Categorical[Tuple[handState, float]]]] = {}
-
-        for currDiceLeft in range(1, self.totalRolls+1):
-            print(currDiceLeft)
-            for numOnes in range(self.totalRolls - currDiceLeft + 1):
+        seqRewardArr.append(cumulativeReward)
+        
+    seqRewardArr.reverse()
+    T = len(seqRewardArr)
+    
+    for t, transitionStep in enumerate(currSim):
+        currState = transitionStep.state
+        
+        u = math.exp(l, T - t - 1)
+        G_t = seqRewardArr[t]
+        
+        MC_Val = u * G_t
+        
+        TD_Val = 0
+        
+        for n, nextTransitionStep in enumerate(currSim[t:]):
+            
+            u_n = (1 - l) * math.exp(l, n)
+            
+            if (t+n+1 == len(seqRewardArr)):
+                subtract_rewards = 0
+            else:
+                subtract_rewards = seqRewardArr[t+n+1] * gamma
                 
-                minSum = diceTaken = self.totalRolls - currDiceLeft
-                maxSum = ((diceTaken - numOnes) * self.numFaces) + numOnes 
-                
-                for currSum in range(minSum, maxSum+1):
-                    for diceAvail in self.allCombinations[currDiceLeft]:
-                        
-                        currHand = handState(Ones = numOnes, Sum = currSum, Dice = diceAvail)
-                        
-                        action_dist_map: Dict[List[int], Categorical[Tuple[handState, float]]]= {}
-                        
-                        for takeAmount in range(1, currDiceLeft+1):
-                            allActions = list(combinations(diceAvail, takeAmount))
-                            for action in allActions:
-                                rem = currDiceLeft - takeAmount
-                                newOnes = numOnes + action.count(1)
-                                newSum = currSum + sum(action)
-                                
-                                new_state_dist: Dict[Tuple[handState, float], float]= {}
-                                
-                                
-                                if rem == 0:
-                                    if newOnes < self.minOnes:
-                                        new_state_dist[(handState(newOnes, newSum, tuple([])), 0)] = 1
-                                    else:
-                                        new_state_dist[(handState(newOnes, newSum, tuple([])), newSum)] = 1
-                                else:
-                                    totalOptions = len(self.allCombinations[rem])
-                                    for nextDiceAvail in self.allCombinations[rem]:
-                                        new_state_dist[(handState(newOnes, newSum, tuple(nextDiceAvail)), 0)] = 1/totalOptions
-                                
-                                action_dist_map[action] = Categorical(new_state_dist)
-                        
-                        d[currHand] = action_dist_map
-        #print(d)
-              
-        return d
+            G_tn = G_t - subtract_rewards + currApprox[currSim[t+n].next_state]
+            
+            TD_Val += u_n * G_tn
+        
+        
+        currApprox[currState] = TD_Val + MC_Val
+        
     
-N = 6
-K = 3
-C = 1    
-diceMDP = diceRollsMDP(N = N, K = K, C = C)
-
-
-print("MDP Transition Map created successfully")
-print("------------------\n")
-#print(diceMDP)
-
-print("Optimal Policy and value function for MDP1 computed")
-print("--------------\n")
-opt_vf_vi, opt_policy_vi = value_iteration_result((diceMDP), gamma=1)
-
-expScore = 0
-
-for possRolls in diceMDP.allCombinations[N]:
-    expScore += opt_vf_vi[NonTerminal(handState(0,0,possRolls))]
+    return currApprox
     
-expScore /= len(diceMDP.allCombinations[N])
 
-print("Expected Score of playing game optimally: ")
-print(expScore)
-
-startRollToFindOptimal = tuple([1,2,2,2,2,3])
-print("Optimal action when rolling: " + str(startRollToFindOptimal) + " on first roll:")
-print(opt_policy_vi.action_for[handState(0,0,startRollToFindOptimal)])
-
-
-
-
-
-    
-    
     
