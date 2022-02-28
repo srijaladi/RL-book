@@ -159,7 +159,7 @@ if __name__ == '__main__':
     user_holding_cost = 1.0
     user_stockout_cost = 10.0
 
-    user_gamma = 0.9
+    user_gamma = 0.5
 
     si_mrp = SimpleInventoryMRPFinite(
         capacity=user_capacity,
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     si_mrp.display_value_function(gamma=user_gamma)
     print()
     
-    totalAdd = 10000000
+    totalAdd = 100000
     perAdd = 10000
     episode_length = perAdd
     

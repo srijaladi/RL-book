@@ -98,9 +98,11 @@ def updateTabularTDLambda(
         G_t = seqRewardArr[t]
         
         MC_Val = u * G_t
+        
         TD_Val = 0
         
         for n, nextTransitionStep in enumerate(currSim[t:]):
+            
             u_n = (1 - l) * math.exp(l, n)
             
             if (t+n+1 == len(seqRewardArr)):
@@ -108,7 +110,8 @@ def updateTabularTDLambda(
             else:
                 subtract_rewards = seqRewardArr[t+n+1] * gamma
                 
-            G_tn = G_t - subtract_rewards + currApprox[currSim[t+n].next_state] 
+            G_tn = G_t - subtract_rewards + currApprox[currSim[t+n].next_state]
+            
             TD_Val += u_n * G_tn
         
         
