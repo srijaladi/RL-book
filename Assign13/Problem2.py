@@ -134,21 +134,9 @@ def updateTabularSARSA(
         if (rand >= greedy_prob or len(currQ[currState]) == 0):
             optionsChoose = Choose(list(mdp.actions(currState)))
             actionChoice = optionsChoose.sample_n(1)[0]
-            #print(list(mdp.actions(currState)))
-            #print(actionChoice)
         else:
-            #print(currQ)
-            #print(greedy_prob)
-            #print("CurrState's Q")
-            #print(currQ[currState])
-            #print("This action is for State: " + str(currState))
             actionChoice = max(currQ[currState], key=currQ[currState].get)
-            #rint([x,y for x,y in currQ[currState].items())
-            #print("Action Choice through greedy is: " + str(actionChoice))
-            #print("Possible actions are: " + str(list(mdp.actions(currState))))
-            #print()
         
-        #print(actionChoice)
         nextDist = mdp.step(currState, actionChoice)
         
         nextStateReward = nextDist.sample_n(1)[0]
@@ -161,21 +149,14 @@ def updateTabularSARSA(
             ASCount[lastState][lastAction] = useCount
             
             lastASValue = currQ[lastState][lastAction]
-            #print("Last State: " + str(lastState))
-            #print("Last Action: " + str(lastAction))
-            #print("New CurrQ:")
-            #print(currQ)
             currASValue = currQ[currState][actionChoice]
             
             EstASValue = lastReward + gamma * currASValue
             alpha_step = 1/useCount
             
             newASValue = lastASValue + alpha_step * (EstASValue - lastASValue)
-            #print('##########')
-            #print(currQ)
             currQ[lastState][lastAction] = newASValue
-            #print(currQ)
-            #print('##########')
+
         
         lastReward = currReward
         lastAction = actionChoice
