@@ -203,20 +203,33 @@ def get_mrp_value_function(
 
 def TabularTDPredict(
         simulations: Iterable[mp.TransitionStep[S]],
-        gamma: float
+        gamma: float,
+        num_updates: int = 300000,
+        learning_rate: float = 0.3,
+        learning_rate_decay: int = 30
         ) -> Mapping[S, float]:
-    
+    #print(num_updates)
     def def_value():
         return 0
+    def alpha_compute(n):
+        #n -> Number of updates so far
+        return learning_rate * (n / learning_rate_decay + 1) ** -0.5
+        return 1/(n+1)
     
     V: Mapping[S, float] = defaultdict(def_value)
     stateUpdates: Mapping[S, int] = defaultdict(def_value)
     
-    for transitionStep in simulations:
-        updateResult = updateTabularTD(transitionStep, gamma, V, stateUpdates)
+    #print(num_updates)
+    for update in range(num_updates):
+        alpha = alpha_compute(update)
+        
+        i = update % len(simulations)
+        transitionStep = simulations[i]
+        #print(transitionStep)
+        updateResult = updateTabularTD(transitionStep, gamma, V, stateUpdates, alpha)
         stateUpdates = updateResult[0]
         V = updateResult[1]
-    
+
     return V
     
     
@@ -225,14 +238,8 @@ def updateTabularTD(
         gamma: float,
         currApprox: Mapping[S, float],
         stateUpdates: Mapping[S, int],
-        learning_rate: float = 0.3,
-    learning_rate_decay: int = 30
+        alpha: float
         ) -> Tuple[Mapping[S, int], Mapping[S, float]]:
-    
-    def alpha_compute(n):
-        #n -> Number of updates so far
-        return learning_rate * (n / learning_rate_decay + 1) ** -0.5
-        return 1/(n+1)
     
     currState = transitionStep[0]
     currReward = transitionStep[1]
@@ -246,7 +253,7 @@ def updateTabularTD(
     currEstimate = currReward + gamma * futureValue
     
     n = stateUpdates[currState]
-    alpha = alpha_compute(n)
+    #alpha = alpha_compute(n)
     change = alpha * (currEstimate - currApprox[currState])
     currApprox[currState] += change
         
