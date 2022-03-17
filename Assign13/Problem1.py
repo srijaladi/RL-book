@@ -120,7 +120,7 @@ def updateTabularMCAction(
     for _ in range(num_in_ep):
         rand = np.random.uniform(0,1,1)
         if (rand >= greedy_prob):
-            optionsChoose = Choose(list(mdp.actions(currState)))
+            optionsChoose = Choose(list(mdp.risky_alloc_choices(currState)))
             actionChoice = optionsChoose.sample()
             #print(list(mdp.actions(currState)))
             #print(actionChoice)
@@ -156,6 +156,124 @@ def updateTabularMCAction(
         newASValue = currASValue + (1/currCount) * (cumulativeReward - currASValue)
         
         currQ[addState][addAction] = newASValue
+    
+    return (ASCount, currQ, GreedyV)
+
+
+
+def ApproxMCPolicy(
+        mdp: MarkovDecisionProcess[S, A],
+        startStates: NTStateDistribution[S],
+        QAction: QValueFunctionApprox[S, A],
+        #simulations: Iterable[Iterable[mp.TransitionStep[S]]],
+        gamma: float,
+        episodes: int,
+        num_in_ep: int
+        ) -> QValueFunctionApprox[S, A]:
+    
+    def def_value_neg():
+        return -1
+    def def_value():
+        return 0
+    def def_map():
+        return defaultdict(def_value)
+    
+    GreedyV: Mapping[S, float] = defaultdict(def_value)
+    #QAction: Mapping[S, Mapping[A, float]] = defaultdict(def_map)
+    ActionStateCount: Mapping[S, Mapping[A, int]] = defaultdict(def_map)
+    
+    ss = startStates.sample_n(1)[0]
+    
+    for episode in range(episodes):
+        updateResult = updateApproxMCAction(mdp, ss, episode+1, num_in_ep, gamma,\
+                                             ActionStateCount, QAction, GreedyV)
+        ActionStateCount = updateResult[0]
+        QAction = updateResult[1]
+        GreedyV = updateResult[2]
+    
+    Optimal_Policy: Mapping[S, int] = {s : QAction.argmax(ActionStateCount[s].keys())\
+                                       for s in ActionStateCount.keys()}
+
+    print("Q Counts: ")
+    print("--------------")
+    for state in ActionStateCount.keys():
+        print("STATE: " + str(state.state))
+        for act in ActionStateCount[state].keys():
+            print("Action: " + str(act) + ", Count: " + str(ActionStateCount[state][act]))
+    print("")
+    
+    print("Q Values")
+    print("--------------")
+    for state in QAction.keys():
+        print("STATE: " + str(state.state))
+        for act in QAction[state].keys():
+            print("Action: " + str(act) + ", Value: " + str(QAction[state][act]))
+    print()
+    return Optimal_Policy
+    
+    
+def updateApproxMCAction(
+        mdp: MarkovDecisionProcess[S, A],
+        startState: S,
+        episode_num: int,
+        num_in_ep: int,
+        #currSim: Iterable[mp.TransitionStep[S]],
+        gamma: float,
+        ASCount: Mapping[S, Mapping[A, int]],
+        currQ: QValueFunctionApprox[S, A],
+        GreedyV: Mapping[S, float],
+        ) -> Tuple[Mapping[S, Mapping[A, int]], Mapping[S, Mapping[A, float]], Mapping[S, float]]:
+    
+    greedy_prob = 1 - (1/episode_num)
+    
+    cumulativeReward = 0
+    seqRewardArr = []
+    currState = startState
+    
+    trace: List[TransitionStep[S, A]] = []
+            
+    
+    for _ in range(num_in_ep):
+        rand = np.random.uniform(0,1,1)
+        if (rand >= greedy_prob):
+            optionsChoose = Choose(list(mdp.risky_alloc_choices(currState)))
+            actionChoice = optionsChoose.sample()
+            #print(list(mdp.actions(currState)))
+            #print(actionChoice)
+        else:
+            #print(currQ)
+            #print(greedy_prob)
+            actionChoice = currQ.argmax(ASCount[currState].keys())
+        
+        #print(actionChoice)
+        nextDist = mdp.step(currState, actionChoice)
+        
+        nextStateReward = nextDist.sample_n(1)[0]
+        nextState = nextStateReward[0]
+        currReward = nextStateReward[1]
+        
+        trace.append(TransitionStep(state=currState,action=actionChoice,\
+                                    next_state=nextStateReward[0],reward=currReward))
+        
+        currState = nextState
+    
+    for transStep in reversed(trace):
+        addState = transStep.state
+        addAction = transStep.action
+        useReward = transStep.reward
+        
+        cumulativeReward *= gamma
+        cumulativeReward += useReward
+        
+        currCount = ASCount[addState][addAction] + 1
+        ASCount[addState][addAction] = currCount
+        
+        currQ.update(((addState, addAction), cumulativeReward))
+        
+        #currASValue = currQ[addState][addAction]
+        #newASValue = currASValue + (1/currCount) * (cumulativeReward - currASValue)
+        
+        #currQ[addState][addAction] = newASValue
     
     return (ASCount, currQ, GreedyV)
     

@@ -132,7 +132,7 @@ def updateTabularSARSA(
         rand = np.random.uniform(0,1,1)
         
         if (rand >= greedy_prob or len(currQ[currState]) == 0):
-            optionsChoose = Choose(list(mdp.actions(currState)))
+            optionsChoose = Choose(list(mdp.risky_alloc_choices(currState)))
             actionChoice = optionsChoose.sample_n(1)[0]
         else:
             actionChoice = max(currQ[currState], key=currQ[currState].get)
@@ -167,4 +167,125 @@ def updateTabularSARSA(
     
     return (ASCount, currQ)
 
+def ApproxSARSA(
+        mdp: MarkovDecisionProcess[S, A],
+        startStates: NTStateDistribution[S],
+        QAction: QValueFunctionApprox[S, A],
+        #simulations: Iterable[Iterable[mp.TransitionStep[S]]],
+        gamma: float,
+        episodes: int
+        ) -> Mapping[S, A]:
+    
+    def def_value_neg():
+        return -1
+    def def_value():
+        return 0
+    def def_map():
+        return defaultdict(int)
+    def def_blank_map():
+        return {}
+    
+    #QAction: Mapping[S, Mapping[A, float]] = defaultdict(def_map)
+    ActionStateCount: Mapping[S, Mapping[A, int]] = defaultdict(def_map)
+    
+    ss = startStates.sample_n(1)[0]
+    
+    updateResult = updateTabularSARSA(mdp, ss, episodes, gamma,\
+                                             ActionStateCount, QAction)
+    
+    ActionStateCount = updateResult[0]
+    QAction = updateResult[1]
+    
+    #print(QAction)
+    Optimal_Policy: Mapping[S, int] = {s : QAction.argmax(ActionStateCount[s].keys())\
+                                       for s in ActionStateCount.keys()}
+        
+    print("Q Counts: ")
+    print("--------------")
+    for state in ActionStateCount.keys():
+        print("STATE: " + str(state.state))
+        for act in ActionStateCount[state].keys():
+            print("Action: " + str(act) + ", Count: " + str(ActionStateCount[state][act]))
+    print("")
+    
+    print("Q Values")
+    print("--------------")
+    for state in QAction.keys():
+        print("STATE: " + str(state.state))
+        for act in QAction[state].keys():
+            print("Action: " + str(act) + ", Value: " + str(QAction[state][act]))
+    print()
+    return Optimal_Policy
+    
+    
+def updateApproxSARSA(
+        mdp: MarkovDecisionProcess[S, A],
+        startState: S,
+        num_episodes: int,
+        #currSim: Iterable[mp.TransitionStep[S]],
+        gamma: float,
+        ASCount: Mapping[S, Mapping[A, int]],
+        currQ: QValueFunctionApprox[S, A],
+        ) -> Tuple[Mapping[S, Mapping[A, int]], QValueFunctionApprox[S, A]]:
+    
+    #greedy_prob = 1 - (1/1)
+    
+    cumulativeReward = 0
+    seqRewardArr = []
+    currState = startState
+    
+    lastReward = -88
+    lastAction = -88
+    lastState = -88
+    
+    currReward = -88
+    actionChoice = -88
+    
+    trace: List[TransitionStep[S, A]] = []
+    
+    def def_false():
+        return False
+    state_occur: Mapping[S, bool] = defaultdict(def_false)            
+    
+    for episode_num in range(1, num_episodes + 1):
+        
+        greedy_prob = 1 - (1/(episode_num / 100))
+        
+        rand = np.random.uniform(0,1,1)
+        
+        if (rand >= greedy_prob or len(currQ[currState]) == 0):
+            optionsChoose = Choose(list(mdp.risky_alloc_choices(currState)))
+            actionChoice = optionsChoose.sample_n(1)[0]
+        else:
+            actionChoice = currQ.argmax(ASCount[currState].keys())
+        
+        nextDist = mdp.step(currState, actionChoice)
+        
+        nextStateReward = nextDist.sample_n(1)[0]
+        nextState = nextStateReward[0]
+        
+        currReward = nextStateReward[1]
+        
+        if episode_num > 1:
+            useCount = ASCount[lastState][lastAction] + 1
+            ASCount[lastState][lastAction] = useCount
+            
+            lastASValue = currQ[lastState][lastAction]
+            currASValue = currQ[currState][actionChoice]
+            
+            EstASValue = lastReward + gamma * currASValue
+            #alpha_step = 1/useCount
+            
+            #newASValue = lastASValue + alpha_step * (EstASValue - lastASValue)
+            #currQ[lastState][lastAction] = newASValue
+            currQ.update(((lastState, lastAction), EstASValue))
+        
+        lastReward = currReward
+        lastAction = actionChoice
+        lastState = currState
+        
+        currState = nextState
+        
+    
+    return (ASCount, currQ)
     

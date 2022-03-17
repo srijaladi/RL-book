@@ -41,6 +41,7 @@ exponent: float = 0.5
 ffs: Sequence[Callable[[NonTerminal[InventoryState]], float]] = \
     [(lambda x, s=s: float(x.state == s.state)) for s in nt_states]
 
+
 mc_ag: AdamGradient = AdamGradient(
     learning_rate=0.05,
     decay1=0.9,
@@ -83,6 +84,11 @@ it_td: Iterable[ValueFunctionApprox[InventoryState]] = \
         initial_func_approx=td_func_approx
     )
 
+tempstate = si_mrp.non_terminal_states[0]
+print(tempstate)
+print(mc_func_approx.get_feature_values(si_mrp.non_terminal_states))
+
+"""
 mc_episodes: int = 3000
 for i, mc_vf in enumerate(islice(it_mc, mc_episodes)):
     mc_rmse: float = np.sqrt(sum(
@@ -96,3 +102,4 @@ for i, td_vf in enumerate(islice(it_td, td_experiences)):
         (td_vf(s) - true_vf[i]) ** 2 for i, s in enumerate(nt_states)
     ) / len(nt_states))
     print(f"TD: Iteration = {i:d}, RMSE = {td_rmse:.3f}")
+"""
